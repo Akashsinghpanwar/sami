@@ -10,6 +10,7 @@ from llama_index.core import (
 )
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.embeddings.openai import OpenAIEmbedding
+from app.settings import OPENAI_API_KEY, EMBEDDING_MODEL
 
 # NOTE: do NOT build the index at import time.
 # Build only when functions are called, to avoid uvicorn reloader issues.
@@ -47,7 +48,10 @@ def get_index():
 
     # Configure embedding lazily (avoid heavy import on module import)
     if _EMBED_MODEL is None:
-        _EMBED_MODEL = OpenAIEmbedding(model="text-embedding-3-small")
+        _EMBED_MODEL = OpenAIEmbedding(
+            model=EMBEDDING_MODEL,
+            api_key=OPENAI_API_KEY,
+        )
         Settings.embed_model = _EMBED_MODEL
 
     # Load if previously persisted

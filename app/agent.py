@@ -2,6 +2,7 @@ from typing import Dict, Any
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from app.tools import get_all_tools
+from app.settings import OPENAI_API_KEY, LLM_MODEL
 
 # Global agent instance
 _AGENT = None
@@ -14,7 +15,10 @@ def get_agent():
     global _AGENT
     if _AGENT is None:
         # It's better to load the LLM once and reuse it
-        llm = OpenAI(model="gpt-4o-mini")
+        llm = OpenAI(
+            api_key=OPENAI_API_KEY,
+            model=LLM_MODEL,
+        )
         _AGENT = ReActAgent(
             tools=get_all_tools(),
             llm=llm,
