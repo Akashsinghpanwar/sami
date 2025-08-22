@@ -1,10 +1,1 @@
-.env.env
-__pycache__/
-venv/
-*.pyc
-.env.*
-.env
-.env.*
-venv/
-__pycache__/
-*.pyc
+uvicorn.log

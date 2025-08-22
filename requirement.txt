@@ -9,3 +9,5 @@ llama-index-readers-file
 chromadb
 tiktoken
 PyPDF2
+python-multipart
+gradio

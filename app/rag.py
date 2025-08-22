@@ -1,5 +1,6 @@
 import os, glob
 from typing import List, Tuple
+from openai import AuthenticationError
 from llama_index.core import (
     VectorStoreIndex,
     SimpleDirectoryReader,
@@ -57,28 +58,46 @@ def get_index():
     # First-time build
     paths = _seed_if_empty()
     docs = SimpleDirectoryReader(input_files=paths).load_data()
-    _INDEX = VectorStoreIndex.from_documents(docs)
-    _INDEX.storage_context.persist(persist_dir=_VECTOR_DIR)
-    return _INDEX
+    try:
+        _INDEX = VectorStoreIndex.from_documents(docs)
+        _INDEX.storage_context.persist(persist_dir=_VECTOR_DIR)
+        return _INDEX
+    except AuthenticationError as e:
+        raise ValueError(
+            "OpenAI API key is missing or invalid. "
+            "Please set the OPENAI_API_KEY environment variable."
+        )
 
 def add_files(filepaths: List[str]) -> int:
     """Add files to the vector index and persist."""
-    idx = get_index()
-    docs = SimpleDirectoryReader(input_files=filepaths).load_data()
-    nodes = idx.service_context.node_parser.get_nodes_from_documents(docs)
-    idx.insert_nodes(nodes)
-    idx.storage_context.persist(persist_dir=_VECTOR_DIR)
-    return len(filepaths)
+    try:
+        idx = get_index()
+        docs = SimpleDirectoryReader(input_files=filepaths).load_data()
+        nodes = idx.service_context.node_parser.get_nodes_from_documents(docs)
+        idx.insert_nodes(nodes)
+        idx.storage_context.persist(persist_dir=_VECTOR_DIR)
+        return len(filepaths)
+    except AuthenticationError as e:
+        raise ValueError(
+            "OpenAI API key is missing or invalid. "
+            "Please set the OPENAI_API_KEY environment variable."
+        )
 
 def query_rag(q: str) -> Tuple[str, list]:
     """Query the index and return (answer, [citations])."""
-    idx = get_index()
-    engine = idx.as_query_engine(similarity_top_k=4)
-    res = engine.query(q)
-    citations = []
-    for n in res.source_nodes:
-        meta = n.node.metadata or {}
-        citations.append(meta.get("file_name", "doc"))
-    # De-dup citations, preserve order
-    citations = list(dict.fromkeys(citations))
-    return str(res), citations
+    try:
+        idx = get_index()
+        engine = idx.as_query_engine(similarity_top_k=4)
+        res = engine.query(q)
+        citations = []
+        for n in res.source_nodes:
+            meta = n.node.metadata or {}
+            citations.append(meta.get("file_name", "doc"))
+        # De-dup citations, preserve order
+        citations = list(dict.fromkeys(citations))
+        return str(res), citations
+    except AuthenticationError as e:
+        return (
+            "OpenAI API key is missing or invalid. "
+            "Please set the OPENAI_API_KEY environment variable."
+        , [])
