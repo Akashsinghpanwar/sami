@@ -8,7 +8,9 @@ from llama_index.core import (
     StorageContext,
     load_index_from_storage,
 )
+from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.embeddings.openai import OpenAIEmbedding
+from app.settings import OPENAI_API_KEY, EMBEDDING_MODEL
 
 # NOTE: do NOT build the index at import time.
 # Build only when functions are called, to avoid uvicorn reloader issues.
@@ -46,7 +48,10 @@ def get_index():
 
     # Configure embedding lazily (avoid heavy import on module import)
     if _EMBED_MODEL is None:
-        _EMBED_MODEL = OpenAIEmbedding(model="text-embedding-3-small")
+        _EMBED_MODEL = OpenAIEmbedding(
+            model=EMBEDDING_MODEL,
+            api_key=OPENAI_API_KEY,
+        )
         Settings.embed_model = _EMBED_MODEL
 
     # Load if previously persisted
@@ -83,21 +88,24 @@ def add_files(filepaths: List[str]) -> int:
             "Please set the OPENAI_API_KEY environment variable."
         )
 
-def query_rag(q: str) -> Tuple[str, list]:
-    """Query the index and return (answer, [citations])."""
-    try:
-        idx = get_index()
-        engine = idx.as_query_engine(similarity_top_k=4)
-        res = engine.query(q)
-        citations = []
-        for n in res.source_nodes:
-            meta = n.node.metadata or {}
-            citations.append(meta.get("file_name", "doc"))
-        # De-dup citations, preserve order
-        citations = list(dict.fromkeys(citations))
-        return str(res), citations
-    except AuthenticationError as e:
-        return (
-            "OpenAI API key is missing or invalid. "
-            "Please set the OPENAI_API_KEY environment variable."
-        , [])
+def get_rag_tool():
+    """
+    Creates and returns a LlamaIndex QueryEngineTool for the RAG system.
+    This tool allows the agent to query the knowledge base.
+    """
+    index = get_index()
+    query_engine = index.as_query_engine(similarity_top_k=4)
+
+    rag_tool = QueryEngineTool(
+        query_engine=query_engine,
+        metadata=ToolMetadata(
+            name="knowledge_base_retriever",
+            description=(
+                "Searches and retrieves information from uploaded documents "
+                "(like charter parties, statements of fact, etc.). "
+                "Use this for questions about specific clauses, events, or details "
+                "not covered by other tools."
+            ),
+        ),
+    )
+    return rag_tool

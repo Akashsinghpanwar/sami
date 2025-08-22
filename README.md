@@ -1,6 +1,6 @@
 # Maritime Virtual Assistant
 
-This project is a virtual AI assistant for the maritime industry. It can answer queries related to laytime, weather, distances, and charter party clauses.
+This project is a virtual AI assistant for the maritime industry. It uses a `ReActAgent` powered by LlamaIndex and OpenAI to answer queries related to laytime, weather, distances, and charter party clauses.
 
 ## Setup
 
@@ -9,12 +9,13 @@ This project is a virtual AI assistant for the maritime industry. It can answer 
     pip install -r requirement.txt
     ```
 
-2.  **Configure API keys:**
-    Create a `.env` file in the root of the project and add your API keys:
+2.  **Configure API keys and Model:**
+    Create a `.env` file in the root of the project and add your OpenAI API key:
     ```
     OPENAI_API_KEY="your_openai_api_key_here"
     WEATHER_API_KEY="your_weather_api_key_here"
     ```
+    You **must** set the `OPENAI_API_KEY` for the agent to work.
 
 ## Running the application
 
