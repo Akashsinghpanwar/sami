@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+python-dotenv
+openai>=1.40.0
+llama-index
+llama-index-embeddings-openai
+llama-index-readers-file
+chromadb
+tiktoken
+PyPDF2
