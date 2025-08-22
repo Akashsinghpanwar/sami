@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
+from starlette.responses import JSONResponse
 from typing import List
 import os, shutil
 
@@ -23,8 +24,11 @@ async def ingest(files: List[UploadFile] = File(...)):
             shutil.copyfileobj(f.file, out)
         saved.append(dest)
 
-    added = add_files(saved) if saved else 0
-    return {"added": added, "files": [os.path.basename(p) for p in saved]}
+    try:
+        added = add_files(saved) if saved else 0
+        return {"added": added, "files": [os.path.basename(p) for p in saved]}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
 
 @app.post("/chat")
 async def chat(payload: dict):
@@ -33,5 +37,8 @@ async def chat(payload: dict):
     message = (payload or {}).get("message", "").strip()
     if not message:
         return {"reply": "Send a 'message' field.", "citations": []}
-    result = run_agent(message)
-    return {"reply": result.get("reply", ""), "citations": result.get("citations", [])}
+    try:
+        result = run_agent(message)
+        return {"reply": result.get("reply", ""), "citations": result.get("citations", [])}
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
