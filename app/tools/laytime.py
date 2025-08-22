@@ -1,45 +1,45 @@
 from datetime import datetime
-from typing import List, Tuple, Dict, Optional
+from llama_index.core.tools import FunctionTool
 
-# Very simplified laytime engine for hackathon:
-# - Assumes SHINC (Saturdays, Sundays, Holidays Included) by default
-# - Accepts exclusion windows (e.g., weather delays, strikes)
-# - Extend with SHEX/WWD and notice/turntime as needed
+def compute_laytime(arrival_str: str, completion_str: str, allowed_days: float) -> dict:
+    """
+    Computes laytime details based on vessel arrival, completion of cargo operations,
+    and the allowed time in days.
 
-def parse_dt(s: str) -> datetime:
-    # Accepts "2025-08-10 12:00" (local/UTC; you can standardize)
-    return datetime.strptime(s, "%Y-%m-%d %H:%M")
+    Args:
+        arrival_str (str): Vessel arrival datetime in 'YYYY-MM-DD HH:MM' format.
+        completion_str (str): Cargo operations completion datetime in 'YYYY-MM-DD HH:MM' format.
+        allowed_days (float): The number of days allowed for cargo operations as per the charter party.
+    """
+    try:
+        arrival = datetime.strptime(arrival_str, "%Y-%m-%d %H:%M")
+        completion = datetime.strptime(completion_str, "%Y-%m-%d %H:%M")
+    except ValueError:
+        return {"error": "Invalid date format. Use 'YYYY-MM-DD HH:MM'."}
 
-def hours_between(a: datetime, b: datetime) -> float:
-    return (b - a).total_seconds() / 3600.0
+    gross_duration = completion - arrival
+    gross_hours = gross_duration.total_seconds() / 3600
+    allowed_hours = allowed_days * 24
 
-def compute_laytime(
-    arrived: str,
-    completed: str,
-    allowed_days: float,
-    exclusions: Optional[List[Tuple[str, str]]] = None,
-) -> Dict:
-    start = parse_dt(arrived)
-    end = parse_dt(completed)
-    gross_hours = hours_between(start, end)
+    # This is a simplification; a real laytime calculation would have many more rules
+    # for excluding periods like weekends, bad weather, etc.
+    excluded_hours = 0
+    used_hours = gross_hours - excluded_hours
+    balance_hours = allowed_hours - used_hours
 
-    excluded = 0.0
-    for ex in (exclusions or []):
-        exs, exe = parse_dt(ex[0]), parse_dt(ex[1])
-        # overlap window
-        s, e = max(start, exs), min(end, exe)
-        if s < e:
-            excluded += hours_between(s, e)
-
-    used_hours = max(0.0, gross_hours - excluded)
-    allowed_hours = allowed_days * 24.0
-    balance = allowed_hours - used_hours
+    status = "despatch" if balance_hours > 0 else "demurrage"
 
     return {
         "gross_hours": round(gross_hours, 2),
-        "excluded_hours": round(excluded, 2),
-        "used_hours": round(used_hours, 2),
         "allowed_hours": round(allowed_hours, 2),
-        "balance_hours": round(balance, 2),
-        "status": "despatch" if balance > 0 else ("on_time" if balance == 0 else "demurrage"),
+        "excluded_hours": round(excluded_hours, 2),
+        "used_hours": round(used_hours, 2),
+        "balance_hours": round(balance_hours, 2),
+        "status": status,
     }
+
+laytime_tool = FunctionTool.from_defaults(
+    fn=compute_laytime,
+    name="laytime_calculator",
+    description="Calculates laytime, demurrage, or despatch based on arrival and completion times, and allowed duration.",
+)
